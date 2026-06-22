@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0
+
+- **Modul `LastprognoseKachel` entfernt** — die Energiebilanz-Kachel deckt den Last-only-Fall ab und
+  ist die fähigere Kachel. Bestehende LastprognoseKachel-Instanzen bitte durch eine Energiebilanz-
+  Instanz mit „PV-Erzeugung anzeigen" = aus ersetzen.
+- **Energiebilanz: Anzeige-Schalter** „PV-Erzeugung anzeigen" und „Verbrauch anzeigen". Damit lässt
+  sich dieselbe Kachel als reine PV-, reine Verbrauchs- oder kombinierte Ansicht nutzen — auch wenn
+  beide Quell-Instanzen vorhanden sind.
+
 ## 0.6.0
 
 - **Konsistente Namensgebung** (nur Anzeigenamen; Prefixe `LFC_`/`PVF_`/`EFTILE_` und GUIDs bleiben,

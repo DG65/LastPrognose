@@ -15,6 +15,25 @@
             "caption": "Last-Prognose-Instanz (leer = automatisch, optional)"
         },
         {
+            "type": "RowLayout",
+            "items": [
+                {
+                    "type": "CheckBox",
+                    "name": "ShowPV",
+                    "caption": "PV-Erzeugung anzeigen"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "ShowLoad",
+                    "caption": "Verbrauch anzeigen"
+                }
+            ]
+        },
+        {
+            "type": "Label",
+            "caption": "Für eine reine Verbrauchs-Kachel „PV-Erzeugung anzeigen\" abschalten; für reine PV-Kachel „Verbrauch anzeigen\"."
+        },
+        {
             "type": "Select",
             "name": "Days",
             "caption": "Anzuzeigende Tage",

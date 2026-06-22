@@ -33,6 +33,8 @@ class Energiebilanz extends IPSModule
 
         $this->RegisterPropertyInteger('PVSource',   0);
         $this->RegisterPropertyInteger('LoadSource', 0);
+        $this->RegisterPropertyBoolean('ShowPV',     true);
+        $this->RegisterPropertyBoolean('ShowLoad',   true);
         $this->RegisterPropertyInteger('Days',       self::DEF_DAYS);
         $this->RegisterPropertyInteger('ColorPV',    self::DEF_PV);
         $this->RegisterPropertyInteger('ColorLoad',  self::DEF_LOAD);
@@ -140,8 +142,11 @@ class Energiebilanz extends IPSModule
         $limit = max(1, min(3, $this->ReadPropertyInteger('Days')));
         $labels = ['heute', 'morgen', 'übermorgen'];
 
-        $pvSrc   = $this->ResolveSource(self::SOURCE_PV, 'PVSource');
-        $loadSrc = $this->ResolveSource(self::SOURCE_LOAD, 'LoadSource');
+        $showPV   = $this->ReadPropertyBoolean('ShowPV');
+        $showLoad = $this->ReadPropertyBoolean('ShowLoad');
+
+        $pvSrc   = $showPV   ? $this->ResolveSource(self::SOURCE_PV, 'PVSource')   : 0;
+        $loadSrc = $showLoad ? $this->ResolveSource(self::SOURCE_LOAD, 'LoadSource') : 0;
 
         $pvDays   = $this->ReadSeries($pvSrc,   ['PVF_Today', 'PVF_Tomorrow', 'PVF_DayAfter'], $limit);
         $loadDays = $this->ReadSeries($loadSrc, ['LFC_Today', 'LFC_Tomorrow', 'LFC_DayAfter'], $limit);

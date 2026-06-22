@@ -6,8 +6,8 @@ Energieprognose-Suite mit drei Bausteinen, die dem EMS beide Seiten der Energieb
 - **LoadForecast** (Prefix `LFC`) — Verbrauchsprognose über ein Ähnliche-Tage-Verfahren (k-NN).
 - **PVForecast** (Prefix `PVF`) — physikbasierte PV-Erzeugungsprognose je Generator über eine
   Wetter-/Solar-API ([Details unten](#pvforecast--pv-erzeugungsprognose)).
-- **EnergyForecastTile** (Prefix `EFTILE`) — kombinierte Kachel, die Erzeugung und Verbrauch
-  gemeinsam zeigt.
+- **Energiebilanz** (Prefix `EFTILE`) — kombinierte Kachel, die Erzeugung und Verbrauch
+  gemeinsam (oder per Schalter einzeln) zeigt.
 
 ## LoadForecast — Verbrauchsprognose
 
@@ -132,16 +132,8 @@ $spread = array_sum($fc['p90']) - array_sum($fc['p10']);
 Das **Unsicherheitsband** (P10/P90) erlaubt risikobewusste Entscheidungen:
 bei großer Spreizung konservativer puffern, bei enger Spreizung optimistischer fahren.
 
-## Kachel (LoadForecastTile)
-
-Das Paket enthält ein eigenständiges Kachel-Modul **LoadForecastTile** für die
-Tile-Visualisierung. Es findet die `LoadForecast`-Instanz automatisch (oder per
-Auswahl) und zeichnet das P10/P50/P90-Band der nächsten 1–3 Tage als SVG-Diagramm
-(Median-Linie + Unsicherheitsfläche, Tagestrenner, kWh je Tag, „jetzt"-Marker) —
-ohne externe Chart-Library. Beim Überfahren (Maus oder Touch) zeigt ein Tooltip
-Tag, Uhrzeit, erwarteten Wert (P50) und Bandbereich (P10–P90). Akzentfarbe,
-Hintergrund und Schriftgröße sind einstellbar; Standard ist theme-konform
-(transparent, automatische Textfarbe).
+> Für die grafische Darstellung der Lastprognose dient die Kachel **Energiebilanz**
+> (siehe unten) mit dem Schalter „PV-Erzeugung anzeigen" = aus.
 
 ## Ausbaustufen
 
@@ -172,9 +164,13 @@ sondern Anlagengeometrie × Einstrahlungsvorhersage:
 Ausgabe: stündliches Profil (P10/P50/P90 — bei Open-Meteo/Forecast.Solar als Linie, bei Solcast
 echtes Band) + kWh für heute/morgen/übermorgen. EMS-Zugriff: `PVF_GetForecast($id, $offset)`.
 
-## EnergyForecastTile — kombinierte Energie-Kachel
+## Energiebilanz — kombinierte Kachel
 
 Zeigt **PV-Erzeugung und Verbrauch** als zwei P10/P50/P90-Bänder in einem Diagramm — der
 EMS-Blick: Erzeugung gegen Verbrauch, die Lücke ist Netzbezug/Einspeisung. Findet die PV- und die
-Last-Instanz automatisch per Modul-GUID (funktioniert auch **PV-only**). Hover/Touch zeigt PV-Wert,
-Verbrauch und **Saldo** zur jeweiligen Uhrzeit; Farben/Schrift einstellbar, theme-konform.
+Last-Instanz automatisch per Modul-GUID. Per Schalter **„PV-Erzeugung anzeigen"** / **„Verbrauch
+anzeigen"** lässt sich dieselbe Kachel als kombinierte, reine PV- oder reine Verbrauchs-Ansicht
+nutzen. Hover/Touch zeigt PV-Wert, Verbrauch und **Saldo** zur jeweiligen Uhrzeit.
+
+Konfigurierbar: kWh je Tag, Linienstärke, Kurvenglättung, Unsicherheitsband (ein/aus + Transparenz),
+Gitter/Achsen, Y-Achse manuell, Farben und Schriftgröße; Standard ist theme-konform.
