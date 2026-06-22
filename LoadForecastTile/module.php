@@ -12,7 +12,7 @@ declare(strict_types=1);
  * Bewusst von der Datenlogik getrennt: Ein Problem in der Kachel kann die
  * Prognoseberechnung der Quell-Instanz nicht beeinträchtigen.
  */
-class LoadForecastTile extends IPSModule
+class LastprognoseKachel extends IPSModule
 {
     // GUID des Datenmoduls LoadForecast (für die Quellen-Auswahl)
     private const SOURCE_MODULE = '{DC5AD508-507F-40EA-8630-0959AED83050}';

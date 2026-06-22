@@ -10,16 +10,22 @@ declare(strict_types=1);
  * P10/P50/P90-Bänder in einem Diagramm. Beide Quellen werden automatisch per
  * Modul-GUID gefunden; die Kachel funktioniert auch PV-only.
  */
-class EnergyForecastTile extends IPSModule
+class Energiebilanz extends IPSModule
 {
     private const SOURCE_PV   = '{257DD4E8-9705-462E-89FC-56D0A1038353}'; // PVForecast
     private const SOURCE_LOAD = '{DC5AD508-507F-40EA-8630-0959AED83050}'; // LoadForecast
 
     private const DEF_PV    = 0xE0A020; // Bernstein
     private const DEF_LOAD  = 0x2BB3C0; // Türkis
-    private const DEF_BG    = -1;
-    private const DEF_SCALE = 1.0;
-    private const DEF_DAYS  = 3;
+    private const DEF_BG     = -1;
+    private const DEF_SCALE  = 1.0;
+    private const DEF_DAYS   = 3;
+    private const DEF_LW     = 2.0;
+    private const DEF_SMOOTH = true;
+    private const DEF_BAND   = true;
+    private const DEF_BANDOP = 0.16;
+    private const DEF_GRID   = true;
+    private const DEF_YMAX   = 0.0; // 0 = automatisch
 
     public function Create()
     {
@@ -32,6 +38,14 @@ class EnergyForecastTile extends IPSModule
         $this->RegisterPropertyInteger('ColorLoad',  self::DEF_LOAD);
         $this->RegisterPropertyInteger('ColorBackground', self::DEF_BG);
         $this->RegisterPropertyFloat('FontScale',    self::DEF_SCALE);
+
+        // Darstellungsoptionen
+        $this->RegisterPropertyFloat('LineWidth',    self::DEF_LW);
+        $this->RegisterPropertyBoolean('Smooth',     self::DEF_SMOOTH);
+        $this->RegisterPropertyBoolean('ShowBand',   self::DEF_BAND);
+        $this->RegisterPropertyFloat('BandOpacity',  self::DEF_BANDOP);
+        $this->RegisterPropertyBoolean('ShowGrid',   self::DEF_GRID);
+        $this->RegisterPropertyFloat('YMaxManual',   self::DEF_YMAX);
 
         $this->SetVisualizationType(1);
     }
@@ -91,6 +105,12 @@ class EnergyForecastTile extends IPSModule
         $this->UpdateFormField('ColorLoad', 'value', self::DEF_LOAD);
         $this->UpdateFormField('ColorBackground', 'value', self::DEF_BG);
         $this->UpdateFormField('FontScale', 'value', self::DEF_SCALE);
+        $this->UpdateFormField('LineWidth', 'value', self::DEF_LW);
+        $this->UpdateFormField('Smooth', 'value', self::DEF_SMOOTH);
+        $this->UpdateFormField('ShowBand', 'value', self::DEF_BAND);
+        $this->UpdateFormField('BandOpacity', 'value', self::DEF_BANDOP);
+        $this->UpdateFormField('ShowGrid', 'value', self::DEF_GRID);
+        $this->UpdateFormField('YMaxManual', 'value', self::DEF_YMAX);
     }
 
     public function GetVisualizationTile()
@@ -109,6 +129,12 @@ class EnergyForecastTile extends IPSModule
             'loadColor' => $this->ColorHex($this->ReadPropertyInteger('ColorLoad'), '#2bb3c0'),
             'bg'        => $this->ColorOrEmpty($this->ReadPropertyInteger('ColorBackground')),
             'scale'     => $this->FontScaleValue(),
+            'lineWidth' => max(0.5, min(6.0, $this->ReadPropertyFloat('LineWidth'))),
+            'smooth'    => $this->ReadPropertyBoolean('Smooth'),
+            'showBand'  => $this->ReadPropertyBoolean('ShowBand'),
+            'bandOp'    => max(0.0, min(0.6, $this->ReadPropertyFloat('BandOpacity'))),
+            'showGrid'  => $this->ReadPropertyBoolean('ShowGrid'),
+            'yMaxManual'=> max(0.0, $this->ReadPropertyFloat('YMaxManual')),
         ];
 
         $limit = max(1, min(3, $this->ReadPropertyInteger('Days')));

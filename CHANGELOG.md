@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.0
+
+- **Konsistente Namensgebung** (nur Anzeigenamen; Prefixe `LFC_`/`PVF_`/`EFTILE_` und GUIDs bleiben,
+  damit bestehende Instanzen und EMS-Aufrufe weiterlaufen):
+  - Bibliothek → **Prognose**
+  - LoadForecast → **Lastprognose** (Alias „Last-Prognose")
+  - PVForecast → **PVPrognose** (Alias „PV-Prognose")
+  - LoadForecastTile → **LastprognoseKachel** (Alias „Last-Prognose (Kachel)")
+  - EnergyForecastTile → **Energiebilanz** (Alias „Energieprognose")
+  - (Modulname = PHP-Klassenname; Bindestriche daher nur als Alias möglich.)
+- **Energiebilanz-Kachel konfigurierbar**: Linienstärke, Kurvenglättung (Catmull-Rom — gegen die
+  kantigen Linien), Unsicherheitsband ein/aus + Transparenz, Gitter/Achsen ein/aus, Y-Achse manuell
+  begrenzbar.
+- **kWh je Tag** statt Gesamtsumme: jeder Tag zeigt seine eigene erwartete PV- und Verbrauchs-kWh
+  unter dem Tagesnamen; die Legende ist auf den Farbschlüssel reduziert.
+
 ## 0.5.0
 
 - **Bibliothek zur Energieprognose-Suite erweitert** (Last + PV in einem Repo). Zwei neue Module:

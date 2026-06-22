@@ -57,7 +57,7 @@
 <body>
     <div class="wrap">
         <div class="head">
-            <div class="title">Energieprognose</div>
+            <div class="title">Energiebilanz</div>
             <div class="legend" id="legend"></div>
         </div>
         <div class="chart" id="chart"></div>
@@ -94,32 +94,41 @@
                 return;
             }
 
-            // kW-Reihen je Tag aufbereiten
+            var opt = {
+                lw: data.lineWidth || 2,
+                smooth: data.smooth !== false,
+                showBand: data.showBand !== false,
+                bandOp: (data.bandOp != null ? data.bandOp : 0.16),
+                showGrid: data.showGrid !== false,
+                yMaxManual: data.yMaxManual || 0
+            };
+
+            // kW-Reihen je Tag aufbereiten (inkl. kWh je Tag)
             var nDays = data.days.length;
             var gdays = [];
-            var pvSum = 0, loadSum = 0, pvAny = false, loadAny = false;
+            var pvAny = false, loadAny = false;
             data.days.forEach(function (d) {
-                var pv = d.pv ? { p10: toKW(d.pv.p10), p50: toKW(d.pv.p50), p90: toKW(d.pv.p90) } : null;
-                var ld = d.load ? { p10: toKW(d.load.p10), p50: toKW(d.load.p50), p90: toKW(d.load.p90) } : null;
-                if (d.pv) { pvSum += d.pv.kwh; pvAny = true; }
-                if (d.load) { loadSum += d.load.kwh; loadAny = true; }
+                var pv = d.pv ? { p10: toKW(d.pv.p10), p50: toKW(d.pv.p50), p90: toKW(d.pv.p90), kwh: d.pv.kwh } : null;
+                var ld = d.load ? { p10: toKW(d.load.p10), p50: toKW(d.load.p50), p90: toKW(d.load.p90), kwh: d.load.kwh } : null;
+                if (d.pv) { pvAny = true; }
+                if (d.load) { loadAny = true; }
                 gdays.push({ label: d.label, pv: pv, load: ld });
             });
 
-            // Legende
-            if (pvAny) { legend.innerHTML += '<span class="lg"><span class="sw" style="background:var(--pv)"></span>PV <b>' + fmt(pvSum, 1) + ' kWh</b></span>'; }
-            if (loadAny) { legend.innerHTML += '<span class="lg"><span class="sw" style="background:var(--load)"></span>Verbrauch <b>' + fmt(loadSum, 1) + ' kWh</b></span>'; }
+            // Legende = nur Farbschlüssel; die kWh stehen pro Tag im Diagramm
+            if (pvAny) { legend.innerHTML += '<span class="lg"><span class="sw" style="background:var(--pv)"></span>PV</span>'; }
+            if (loadAny) { legend.innerHTML += '<span class="lg"><span class="sw" style="background:var(--load)"></span>Verbrauch</span>'; }
 
-            // gemeinsames yMax über beide Reihen
+            // gemeinsames yMax (oder manuell vorgegeben)
             var max = 0;
             gdays.forEach(function (g) {
                 [g.pv, g.load].forEach(function (s) {
                     if (s) { s.p90.forEach(function (v) { if (v > max) { max = v; } }); }
                 });
             });
-            var yMax = Math.max(0.5, Math.ceil(max * 1.15 * 2) / 2);
+            var yMax = opt.yMaxManual > 0 ? opt.yMaxManual : Math.max(0.5, Math.ceil(max * 1.15 * 2) / 2);
 
-            var W = 700, H = 240, mL = 34, mR = 8, mT = 10, mB = 30;
+            var W = 700, H = 248, mL = 34, mR = 8, mT = 10, mB = 40;
             var pw = W - mL - mR, ph = H - mT - mB;
             var dayW = pw / nDays;
             var y = function (v) { return mT + ph * (1 - v / yMax); };
@@ -127,37 +136,71 @@
 
             var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Energieprognose: PV-Erzeugung und Verbrauch">';
 
-            // Y-Gitter
-            [0, yMax / 2, yMax].forEach(function (v) {
-                var yy = y(v);
-                svg += '<line x1="' + mL + '" y1="' + fmt(yy, 1) + '" x2="' + (W - mR) + '" y2="' + fmt(yy, 1) + '" stroke="var(--grid)" stroke-width="1"/>';
-                svg += '<text x="' + (mL - 5) + '" y="' + fmt(yy + 3, 1) + '" text-anchor="end" font-size="10" fill="var(--textmuted)">' + fmt(v, 1) + '</text>';
-            });
-            svg += '<text x="2" y="' + (mT + 6) + '" font-size="9" fill="var(--textmuted)">kW</text>';
+            // Y-Gitter (optional)
+            if (opt.showGrid) {
+                [0, yMax / 2, yMax].forEach(function (v) {
+                    var yy = y(v);
+                    svg += '<line x1="' + mL + '" y1="' + fmt(yy, 1) + '" x2="' + (W - mR) + '" y2="' + fmt(yy, 1) + '" stroke="var(--grid)" stroke-width="1"/>';
+                    svg += '<text x="' + (mL - 5) + '" y="' + fmt(yy + 3, 1) + '" text-anchor="end" font-size="10" fill="var(--textmuted)">' + fmt(v, 1) + '</text>';
+                });
+                svg += '<text x="2" y="' + (mT + 6) + '" font-size="9" fill="var(--textmuted)">kW</text>';
+            }
 
-            // Tagestrenner + Labels
+            // Tagestrenner + Tagesname + kWh je Tag
             for (var d = 0; d < nDays; d++) {
                 if (d > 0) {
                     var xb = mL + d * dayW;
                     svg += '<line x1="' + fmt(xb, 1) + '" y1="' + mT + '" x2="' + fmt(xb, 1) + '" y2="' + (mT + ph) + '" stroke="var(--grid)" stroke-width="1"/>';
                 }
-                svg += '<text x="' + fmt(mL + (d + 0.5) * dayW, 1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="11" fill="var(--textmuted)">' + gdays[d].label + '</text>';
+                var kx = mL + (d + 0.5) * dayW;
+                svg += '<text x="' + fmt(kx, 1) + '" y="' + (H - 24) + '" text-anchor="middle" font-size="11" fill="var(--textmuted)">' + gdays[d].label + '</text>';
+                var parts = '';
+                if (gdays[d].pv) { parts += '<tspan fill="var(--pv)">' + fmt(gdays[d].pv.kwh, 1) + '</tspan>'; }
+                if (gdays[d].pv && gdays[d].load) { parts += '<tspan fill="var(--textmuted)"> · </tspan>'; }
+                if (gdays[d].load) { parts += '<tspan fill="var(--load)">' + fmt(gdays[d].load.kwh, 1) + '</tspan>'; }
+                if (parts) { parts += '<tspan fill="var(--textmuted)"> kWh</tspan>'; }
+                svg += '<text x="' + fmt(kx, 1) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="10">' + parts + '</text>';
             }
 
-            // Reihen zeichnen (PV zuerst, Verbrauch darüber)
+            // Pfad aus Punkten [[x,y],…] — optional Catmull-Rom-Glättung.
+            function cmds(pts) {
+                if (pts.length < 2) { return ''; }
+                if (!opt.smooth) {
+                    var s = '';
+                    for (var i = 1; i < pts.length; i++) { s += ' L ' + fmt(pts[i][0], 1) + ',' + fmt(pts[i][1], 1); }
+                    return s;
+                }
+                var out = '';
+                for (var i = 0; i < pts.length - 1; i++) {
+                    var p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || pts[i + 1];
+                    var c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+                    var c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+                    out += ' C ' + fmt(c1x, 1) + ',' + fmt(c1y, 1) + ' ' + fmt(c2x, 1) + ',' + fmt(c2y, 1) + ' ' + fmt(p2[0], 1) + ',' + fmt(p2[1], 1);
+                }
+                return out;
+            }
+
+            // Reihe zeichnen (Band optional + Median-Linie)
             function series(d, s, colorVar) {
                 if (!s) { return ''; }
                 var m = s.p50.length;
                 if (m < 2) { return ''; }
+                var top = [], bot = [], mid = [];
+                for (var i = 0; i < m; i++) {
+                    var x = xs(d, i, m);
+                    top.push([x, y(s.p90[i])]);
+                    mid.push([x, y(s.p50[i])]);
+                }
+                for (var i = m - 1; i >= 0; i--) { bot.push([xs(d, i, m), y(s.p10[i])]); }
+
                 var out = '';
-                var band = 'M';
-                for (var i = 0; i < m; i++) { band += ' ' + fmt(xs(d, i, m), 1) + ',' + fmt(y(s.p90[i]), 1); }
-                for (var i = m - 1; i >= 0; i--) { band += ' ' + fmt(xs(d, i, m), 1) + ',' + fmt(y(s.p10[i]), 1); }
-                band += ' Z';
-                out += '<path d="' + band + '" fill="' + colorVar + '" fill-opacity="0.16" stroke="none"/>';
-                var line = '';
-                for (var i = 0; i < m; i++) { line += (i ? ' L' : 'M') + ' ' + fmt(xs(d, i, m), 1) + ',' + fmt(y(s.p50[i]), 1); }
-                out += '<path d="' + line + '" fill="none" stroke="' + colorVar + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+                if (opt.showBand && opt.bandOp > 0) {
+                    var band = 'M ' + fmt(top[0][0], 1) + ',' + fmt(top[0][1], 1) + cmds(top)
+                             + ' L ' + fmt(bot[0][0], 1) + ',' + fmt(bot[0][1], 1) + cmds(bot) + ' Z';
+                    out += '<path d="' + band + '" fill="' + colorVar + '" fill-opacity="' + opt.bandOp + '" stroke="none"/>';
+                }
+                var line = 'M ' + fmt(mid[0][0], 1) + ',' + fmt(mid[0][1], 1) + cmds(mid);
+                out += '<path d="' + line + '" fill="none" stroke="' + colorVar + '" stroke-width="' + opt.lw + '" stroke-linejoin="round" stroke-linecap="round"/>';
                 return out;
             }
             for (var d = 0; d < nDays; d++) {

@@ -28,7 +28,7 @@ define('PVF_SRC_OPENMETEO',     0);
 define('PVF_SRC_FORECASTSOLAR', 1);
 define('PVF_SRC_SOLCAST',       2);
 
-class PVForecast extends IPSModule
+class PVPrognose extends IPSModule
 {
     // Request-lokales Modell: [offset => 24×{p10,p50,p90} in W]
     private $modelCache = null;
@@ -520,6 +520,6 @@ class PVForecast extends IPSModule
         if ($level > $configLevel) { return; }
         $prefix = ($level === PVF_LOG_VERBOSE) ? 'VERBOSE' : 'INFO';
         $this->SendDebug($prefix, $message, 0);
-        if ($level <= PVF_LOG_BASIC) { IPS_LogMessage('PVForecast', $message); }
+        if ($level <= PVF_LOG_BASIC) { IPS_LogMessage('PVPrognose', $message); }
     }
 }

@@ -52,6 +52,47 @@
                     "minimum": 0.5,
                     "maximum": 2.5,
                     "suffix": " ×"
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "LineWidth",
+                    "caption": "Linienstärke",
+                    "digits": 1,
+                    "minimum": 0.5,
+                    "maximum": 6,
+                    "suffix": " px"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "Smooth",
+                    "caption": "Kurven glätten (gegen kantige Linien)"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "ShowBand",
+                    "caption": "Unsicherheitsband (P10–P90) anzeigen"
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "BandOpacity",
+                    "caption": "Band-Transparenz (0 = unsichtbar … 0.6)",
+                    "digits": 2,
+                    "minimum": 0,
+                    "maximum": 0.6
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "ShowGrid",
+                    "caption": "Gitter & Achsenbeschriftung anzeigen"
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "YMaxManual",
+                    "caption": "Y-Achse max. fest (kW, 0 = automatisch)",
+                    "digits": 1,
+                    "minimum": 0,
+                    "maximum": 100,
+                    "suffix": " kW"
                 }
             ]
         }
