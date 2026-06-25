@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.11.0
+
+- **Energiebilanz-Kachel auf Highcharts umgebaut.** Professionelleres Diagramm mit kontrollierten
+  Pixel-Schriftgrößen (behebt das Schriftgrößen-Problem der SVG-Variante), Splines, nativen
+  P10/P90-Bändern (`arearange`), schönen Tooltips und nativer Legende. Klick auf einen
+  Legendeneintrag blendet die Reihe weiterhin aus/ein (jetzt Highcharts-nativ). Alle bisherigen
+  Funktionen erhalten: Ist-Verlauf-Overlay, „jetzt"-Marker + Ist-Punkte, kWh je Tag, Hover mit Saldo,
+  Linienstärke/Glättung/Band/Gitter/Y-Achse/Schriftart konfigurierbar.
+- **Hinweis Lizenz:** Highcharts wird per CDN (`code.highcharts.com`) geladen, **nicht** im Repo
+  mitgeliefert. Highcharts ist für private, nicht-kommerzielle Nutzung kostenlos; kommerzielle
+  Nutzung erfordert eine Highcharts-Lizenz (siehe https://www.highcharts.com/license).
+
 ## 0.10.0
 
 - **Kachel-Feinschliff (Energiebilanz):**

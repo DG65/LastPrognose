@@ -181,5 +181,11 @@ ganzen Tag. Im WebFront blendet ein **Klick auf einen Legendeneintrag** die jewe
 aus/ein.
 
 Konfigurierbar: kWh je Tag (2 Nachkommastellen), Linienstärke, Kurvenglättung, Unsicherheitsband
-(ein/aus + Transparenz), Gitter/Achsen, Y-Achse manuell, Farben und Schriftgröße; Standard ist
-theme-konform.
+(ein/aus + Transparenz), Gitter/Achsen, Y-Achse manuell, Farben, Schriftart und Schriftgröße;
+Standard ist theme-konform.
+
+> **Charting-Library:** Die Kachel rendert mit **Highcharts**, das per CDN (`code.highcharts.com`)
+> geladen wird — es ist **nicht** Teil dieses Repos. Highcharts ist für **private,
+> nicht-kommerzielle** Nutzung kostenlos; für kommerzielle Nutzung ist eine Highcharts-Lizenz nötig
+> (siehe [highcharts.com/license](https://www.highcharts.com/license)). Im WebFront muss der Browser
+> das CDN erreichen können.
