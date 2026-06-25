@@ -61,6 +61,10 @@ class PVPrognose extends IPSModule
         $this->RegisterPropertyBoolean('PVF_Calibrate',     false);
         $this->RegisterPropertyInteger('PVF_CalibDays',     21);
 
+        // Zeitliche Auflösung (60/30/15 min). Quellen liefern stündlich;
+        // feinere Stufen werden interpoliert (zur Deckung mit der Lastprognose).
+        $this->RegisterPropertyInteger('PVF_Resolution',    60);
+
         // Ausgabe
         $this->RegisterVariableString('PVF_Today',     'PV-Prognose heute (JSON)',      '', 10);
         $this->RegisterVariableString('PVF_Tomorrow',  'PV-Prognose morgen (JSON)',     '', 20);
@@ -148,26 +152,67 @@ class PVPrognose extends IPSModule
         }
 
         $day = $this->modelCache[$offset];
-        $p10 = []; $p50 = []; $p90 = [];
+        $h10 = []; $h50 = []; $h90 = [];
         for ($h = 0; $h < 24; $h++) {
-            $p10[$h] = round($day[$h]['p10'], 1);
-            $p50[$h] = round($day[$h]['p50'], 1);
-            $p90[$h] = round($day[$h]['p90'], 1);
+            $h10[$h] = $day[$h]['p10'];
+            $h50[$h] = $day[$h]['p50'];
+            $h90[$h] = $day[$h]['p90'];
         }
-        $kwh = array_sum($p50) / 1000.0; // 1 h je Slot
+
+        // Stündliches Modell auf die gewählte Auflösung bringen (Interpolation).
+        $slots = $this->slots();
+        $p10 = $this->resample($h10, $slots);
+        $p50 = $this->resample($h50, $slots);
+        $p90 = $this->resample($h90, $slots);
+        $kwh = array_sum($p50) * $this->slotHours() / 1000.0;
 
         return [
             'date'       => date('Y-m-d', $targetTs),
-            'slots'      => 24,
-            'resolution' => '60min',
+            'slots'      => $slots,
+            'resolution' => $this->slotMinutes() . 'min',
             'unit'       => 'W',
-            'p10'        => $p10,
-            'p50'        => $p50,
-            'p90'        => $p90,
-            'mean'       => $p50,
+            'p10'        => array_map(function ($x) { return round($x, 1); }, $p10),
+            'p50'        => array_map(function ($x) { return round($x, 1); }, $p50),
+            'p90'        => array_map(function ($x) { return round($x, 1); }, $p90),
+            'mean'       => array_map(function ($x) { return round($x, 1); }, $p50),
             'kwh'        => round($kwh, 2),
             'neighbors'  => 0,
         ];
+    }
+
+    private function slotMinutes(): int
+    {
+        $m = $this->ReadPropertyInteger('PVF_Resolution');
+        return in_array($m, [15, 30, 60], true) ? $m : 60;
+    }
+
+    private function slots(): int
+    {
+        return (int)(1440 / $this->slotMinutes());
+    }
+
+    private function slotHours(): float
+    {
+        return $this->slotMinutes() / 60.0;
+    }
+
+    /**
+     * Stündliche Werte (24, je Stundenmarke h:00) linear auf $slots Slots
+     * interpolieren. Bei 60 min unverändert; feiner = geglätteter Verlauf.
+     */
+    private function resample(array $hourly, int $slots): array
+    {
+        if ($slots === 24) { return array_values($hourly); }
+        $out = [];
+        $step = 24.0 / $slots; // Stunden je Slot
+        for ($s = 0; $s < $slots; $s++) {
+            $hf = $s * $step;          // Position in Stunden
+            $h0 = (int)floor($hf);
+            $h1 = min(23, $h0 + 1);
+            $f  = $hf - $h0;
+            $out[$s] = $hourly[$h0] * (1.0 - $f) + $hourly[$h1] * $f;
+        }
+        return $out;
     }
 
     public function GetStatusText()

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.0
+
+- **Ist-Werte in der Energiebilanz-Kachel**: optionale Variablen „Ist-PV-Leistung (W)" und
+  „Ist-Hausverbrauch (W)". Die momentane Leistung erscheint live in der Legende und als Punkt auf der
+  „jetzt"-Linie — Prognose gegen Realität auf einen Blick. Live-Update per `VM_UPDATE`; respektiert
+  die Anzeige-Schalter.
+- **PVPrognose: wählbare Auflösung 60/30/15 min** (`PVF_Resolution`), deckungsgleich zur Lastprognose.
+  Die Wetterquellen liefern stündlich; feinere Stufen werden interpoliert (glatterer Verlauf, gleiche
+  Tagessumme — verifiziert).
+- **2 Nachkommastellen** für die kWh-Werte je Tag und die Ist-Werte in der Kachel.
+
 ## 0.7.0
 
 - **Modul `LastprognoseKachel` entfernt** — die Energiebilanz-Kachel deckt den Last-only-Fall ab und

@@ -34,6 +34,20 @@
             "caption": "Für eine reine Verbrauchs-Kachel „PV-Erzeugung anzeigen\" abschalten; für reine PV-Kachel „Verbrauch anzeigen\"."
         },
         {
+            "type": "Label",
+            "caption": "── Ist-Werte (optional): momentane Leistung für Prognose vs. Realität ──"
+        },
+        {
+            "type": "SelectVariable",
+            "name": "ActualPV",
+            "caption": "Ist-PV-Leistung (W)"
+        },
+        {
+            "type": "SelectVariable",
+            "name": "ActualLoad",
+            "caption": "Ist-Hausverbrauch (W)"
+        },
+        {
             "type": "Select",
             "name": "Days",
             "caption": "Anzuzeigende Tage",

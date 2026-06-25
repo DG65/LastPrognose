@@ -20,6 +20,20 @@
                 },
                 {
                     "type": "Select",
+                    "name": "PVF_Resolution",
+                    "caption": "Zeitliche Auflösung (deckungsgleich zur Lastprognose)",
+                    "options": [
+                        { "caption": "60 Minuten (24 Slots)", "value": 60 },
+                        { "caption": "30 Minuten (48 Slots)", "value": 30 },
+                        { "caption": "15 Minuten (96 Slots)", "value": 15 }
+                    ]
+                },
+                {
+                    "type": "Label",
+                    "caption": "Die Wetterquellen liefern stündlich; 30/15 min werden interpoliert (glatterer Verlauf, gleiche Tagessumme)."
+                },
+                {
+                    "type": "Select",
                     "name": "PVF_Log_Level",
                     "caption": "Logging",
                     "options": [

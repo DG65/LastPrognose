@@ -115,9 +115,17 @@
                 gdays.push({ label: d.label, pv: pv, load: ld });
             });
 
-            // Legende = nur Farbschlüssel; die kWh stehen pro Tag im Diagramm
-            if (pvAny) { legend.innerHTML += '<span class="lg"><span class="sw" style="background:var(--pv)"></span>PV</span>'; }
-            if (loadAny) { legend.innerHTML += '<span class="lg"><span class="sw" style="background:var(--load)"></span>Verbrauch</span>'; }
+            // Legende = Farbschlüssel + (falls vorhanden) momentaner Ist-Wert
+            if (pvAny) {
+                var lpv = 'PV';
+                if (data.actualPV != null) { lpv += ' · jetzt <b>' + fmt(data.actualPV / 1000, 2) + ' kW</b>'; }
+                legend.innerHTML += '<span class="lg"><span class="sw" style="background:var(--pv)"></span>' + lpv + '</span>';
+            }
+            if (loadAny) {
+                var lld = 'Verbrauch';
+                if (data.actualLoad != null) { lld += ' · jetzt <b>' + fmt(data.actualLoad / 1000, 2) + ' kW</b>'; }
+                legend.innerHTML += '<span class="lg"><span class="sw" style="background:var(--load)"></span>' + lld + '</span>';
+            }
 
             // gemeinsames yMax (oder manuell vorgegeben)
             var max = 0;
@@ -155,9 +163,9 @@
                 var kx = mL + (d + 0.5) * dayW;
                 svg += '<text x="' + fmt(kx, 1) + '" y="' + (H - 24) + '" text-anchor="middle" font-size="11" fill="var(--textmuted)">' + gdays[d].label + '</text>';
                 var parts = '';
-                if (gdays[d].pv) { parts += '<tspan fill="var(--pv)">' + fmt(gdays[d].pv.kwh, 1) + '</tspan>'; }
+                if (gdays[d].pv) { parts += '<tspan fill="var(--pv)">' + fmt(gdays[d].pv.kwh, 2) + '</tspan>'; }
                 if (gdays[d].pv && gdays[d].load) { parts += '<tspan fill="var(--textmuted)"> · </tspan>'; }
-                if (gdays[d].load) { parts += '<tspan fill="var(--load)">' + fmt(gdays[d].load.kwh, 1) + '</tspan>'; }
+                if (gdays[d].load) { parts += '<tspan fill="var(--load)">' + fmt(gdays[d].load.kwh, 2) + '</tspan>'; }
                 if (parts) { parts += '<tspan fill="var(--textmuted)"> kWh</tspan>'; }
                 svg += '<text x="' + fmt(kx, 1) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="10">' + parts + '</text>';
             }
@@ -208,7 +216,7 @@
                 svg += series(d, gdays[d].load, 'var(--load)');
             }
 
-            // „jetzt"-Marker (Tag 0 = heute)
+            // „jetzt"-Marker (Tag 0 = heute) + Ist-Werte als Punkt auf der Linie
             if (gdays[0].label === 'heute') {
                 var ref = gdays[0].pv || gdays[0].load;
                 if (ref) {
@@ -218,6 +226,13 @@
                     if (idxNow >= 0 && idxNow < m0) {
                         var xn = xs(0, idxNow, m0);
                         svg += '<line x1="' + fmt(xn, 1) + '" y1="' + mT + '" x2="' + fmt(xn, 1) + '" y2="' + (mT + ph) + '" stroke="var(--textmuted)" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/>';
+                        var actDot = function (valW, colorVar) {
+                            if (valW == null) { return; }
+                            var yy = Math.max(mT, Math.min(mT + ph, y(valW / 1000)));
+                            svg += '<circle cx="' + fmt(xn, 1) + '" cy="' + fmt(yy, 1) + '" r="4.5" fill="' + colorVar + '" stroke="var(--tip-bg)" stroke-width="1.5"/>';
+                        };
+                        if (gdays[0].pv) { actDot(data.actualPV, 'var(--pv)'); }
+                        if (gdays[0].load) { actDot(data.actualLoad, 'var(--load)'); }
                     }
                 }
             }

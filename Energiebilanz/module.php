@@ -35,6 +35,9 @@ class Energiebilanz extends IPSModule
         $this->RegisterPropertyInteger('LoadSource', 0);
         $this->RegisterPropertyBoolean('ShowPV',     true);
         $this->RegisterPropertyBoolean('ShowLoad',   true);
+        // Ist-Werte (momentane Leistung in W) — optional, für Prognose vs. Realität.
+        $this->RegisterPropertyInteger('ActualPV',   0);
+        $this->RegisterPropertyInteger('ActualLoad', 0);
         $this->RegisterPropertyInteger('Days',       self::DEF_DAYS);
         $this->RegisterPropertyInteger('ColorPV',    self::DEF_PV);
         $this->RegisterPropertyInteger('ColorLoad',  self::DEF_LOAD);
@@ -81,6 +84,15 @@ class Energiebilanz extends IPSModule
             foreach (['LFC_Today', 'LFC_Tomorrow', 'LFC_DayAfter'] as $ident) {
                 $vid = @IPS_GetObjectIDByIdent($ident, $load);
                 if ($vid !== false && $vid > 0) { $this->RegisterReference($vid); $this->RegisterMessage($vid, VM_UPDATE); $found = true; }
+            }
+        }
+        // Ist-Wert-Variablen live abonnieren (momentane Leistung).
+        foreach (['ActualPV', 'ActualLoad'] as $prop) {
+            $vid = $this->ReadPropertyInteger($prop);
+            if ($vid > 0 && IPS_VariableExists($vid)) {
+                $this->RegisterReference($vid);
+                $this->RegisterMessage($vid, VM_UPDATE);
+                $found = true;
             }
         }
         $this->SetStatus($found ? 102 : 104);
@@ -160,10 +172,16 @@ class Energiebilanz extends IPSModule
             $days[] = ['label' => $labels[$i], 'pv' => $pv, 'load' => $load];
         }
 
+        // Ist-Werte (momentane Leistung in W), nur wenn die Reihe sichtbar ist.
+        $actualPV   = $showPV   ? $this->readActual('ActualPV')   : null;
+        $actualLoad = $showLoad ? $this->readActual('ActualLoad') : null;
+
         return json_encode(array_merge($style, [
-            'hasData' => $hasData,
-            'message' => $hasData ? '' : 'Keine Prognosedaten',
-            'days'    => $days,
+            'hasData'    => $hasData,
+            'message'    => $hasData ? '' : 'Keine Prognosedaten',
+            'days'       => $days,
+            'actualPV'   => $actualPV,
+            'actualLoad' => $actualLoad,
         ]));
     }
 
@@ -181,10 +199,18 @@ class Energiebilanz extends IPSModule
                 'p10' => array_map('floatval', $fc['p10'] ?? []),
                 'p50' => array_map('floatval', $fc['p50']),
                 'p90' => array_map('floatval', $fc['p90'] ?? []),
-                'kwh' => round((float) ($fc['kwh'] ?? 0), 1),
+                'kwh' => round((float) ($fc['kwh'] ?? 0), 2),
             ];
         }
         return $out;
+    }
+
+    /** Momentane Leistung (W) einer Ist-Wert-Variablen; null wenn unkonfiguriert. */
+    private function readActual(string $prop)
+    {
+        $vid = $this->ReadPropertyInteger($prop);
+        if ($vid <= 0 || !IPS_VariableExists($vid)) { return null; }
+        return (float) GetValue($vid);
     }
 
     private function ResolveSource(string $guid, string $prop): int

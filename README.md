@@ -161,8 +161,10 @@ sondern Anlagengeometrie × Einstrahlungsvorhersage:
    einen Korrekturfaktor — fängt Verschattung, Verschmutzung und reale Leistung. Zusätzlich ein
    manueller Korrekturfaktor je Generator.
 
-Ausgabe: stündliches Profil (P10/P50/P90 — bei Open-Meteo/Forecast.Solar als Linie, bei Solcast
-echtes Band) + kWh für heute/morgen/übermorgen. EMS-Zugriff: `PVF_GetForecast($id, $offset)`.
+Ausgabe: Profil (P10/P50/P90 — bei Open-Meteo/Forecast.Solar als Linie, bei Solcast echtes Band) +
+kWh für heute/morgen/übermorgen. **Auflösung 60/30/15 min** wählbar (deckungsgleich zur Lastprognose;
+die Wetterquellen liefern stündlich, feinere Stufen werden interpoliert). EMS-Zugriff:
+`PVF_GetForecast($id, $offset)`.
 
 ## Energiebilanz — kombinierte Kachel
 
@@ -172,5 +174,9 @@ Last-Instanz automatisch per Modul-GUID. Per Schalter **„PV-Erzeugung anzeigen
 anzeigen"** lässt sich dieselbe Kachel als kombinierte, reine PV- oder reine Verbrauchs-Ansicht
 nutzen. Hover/Touch zeigt PV-Wert, Verbrauch und **Saldo** zur jeweiligen Uhrzeit.
 
-Konfigurierbar: kWh je Tag, Linienstärke, Kurvenglättung, Unsicherheitsband (ein/aus + Transparenz),
-Gitter/Achsen, Y-Achse manuell, Farben und Schriftgröße; Standard ist theme-konform.
+Optional lassen sich **Ist-Werte** anbinden (momentane PV-Leistung und Hauslast in W): sie erscheinen
+live in der Legende und als Punkt auf der „jetzt"-Linie — Prognose gegen Realität auf einen Blick.
+
+Konfigurierbar: kWh je Tag (2 Nachkommastellen), Linienstärke, Kurvenglättung, Unsicherheitsband
+(ein/aus + Transparenz), Gitter/Achsen, Y-Achse manuell, Farben und Schriftgröße; Standard ist
+theme-konform.
