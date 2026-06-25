@@ -29,8 +29,7 @@
         body { margin: 0; height: 100%; box-sizing: border-box; font-family: var(--font); color: var(--text); }
         .wrap { box-sizing: border-box; padding: 46px 16px 14px; }
 
-        .head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-        .title { font-size: calc(15px * var(--scale)); font-weight: 500; }
+        .head { display: flex; align-items: baseline; justify-content: flex-end; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; min-height: 14px; }
         .legend { display: flex; gap: 14px; flex-wrap: wrap; }
         .lg { font-size: calc(12px * var(--scale)); color: var(--textmuted); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
         .sw { width: 11px; height: 11px; border-radius: 2px; flex: 0 0 auto; }
@@ -57,7 +56,6 @@
 <body>
     <div class="wrap">
         <div class="head">
-            <div class="title">Energiebilanz</div>
             <div class="legend" id="legend"></div>
         </div>
         <div class="chart" id="chart"></div>
@@ -78,6 +76,7 @@
             if (data.loadColor) { root.setProperty('--load', data.loadColor); }
             root.setProperty('--bg', data.bg ? data.bg : 'transparent');
             root.setProperty('--scale', data.scale || 1);
+            if (data.font) { root.setProperty('--font', data.font); }
             render();
         }
 
@@ -146,7 +145,8 @@
             });
             var yMax = opt.yMaxManual > 0 ? opt.yMaxManual : Math.max(0.5, Math.ceil(max * 1.15 * 2) / 2);
 
-            var W = 700, H = 248, mL = 34, mR = 8, mT = 10, mB = 40;
+            var fs = data.scale || 1; // Schriftgröße-Faktor (wirkt auch auf Diagrammtexte)
+            var W = 700, H = 248, mL = 40, mR = 8, mT = 12, mB = 40;
             var pw = W - mL - mR, ph = H - mT - mB;
             var dayW = pw / nDays;
             var y = function (v) { return mT + ph * (1 - v / yMax); };
@@ -154,14 +154,15 @@
 
             var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Energieprognose: PV-Erzeugung und Verbrauch">';
 
-            // Y-Gitter (optional)
+            // Y-Gitter (optional) + senkrechte Einheit links (keine Überlappung)
             if (opt.showGrid) {
                 [0, yMax / 2, yMax].forEach(function (v) {
                     var yy = y(v);
                     svg += '<line x1="' + mL + '" y1="' + fmt(yy, 1) + '" x2="' + (W - mR) + '" y2="' + fmt(yy, 1) + '" stroke="var(--grid)" stroke-width="1"/>';
-                    svg += '<text x="' + (mL - 5) + '" y="' + fmt(yy + 3, 1) + '" text-anchor="end" font-size="10" fill="var(--textmuted)">' + fmt(v, 1) + '</text>';
+                    svg += '<text x="' + (mL - 5) + '" y="' + fmt(yy + 3, 1) + '" text-anchor="end" font-size="' + fmt(10 * fs, 1) + '" fill="var(--textmuted)">' + fmt(v, 1) + '</text>';
                 });
-                svg += '<text x="2" y="' + (mT + 6) + '" font-size="9" fill="var(--textmuted)">kW</text>';
+                var cy = mT + ph / 2;
+                svg += '<text x="9" y="' + fmt(cy, 1) + '" transform="rotate(-90 9 ' + fmt(cy, 1) + ')" text-anchor="middle" font-size="' + fmt(9 * fs, 1) + '" fill="var(--textmuted)">kW</text>';
             }
 
             // Tagestrenner + Tagesname + kWh je Tag
@@ -171,7 +172,7 @@
                     svg += '<line x1="' + fmt(xb, 1) + '" y1="' + mT + '" x2="' + fmt(xb, 1) + '" y2="' + (mT + ph) + '" stroke="var(--grid)" stroke-width="1"/>';
                 }
                 var kx = mL + (d + 0.5) * dayW;
-                svg += '<text x="' + fmt(kx, 1) + '" y="' + (H - 24) + '" text-anchor="middle" font-size="11" fill="var(--textmuted)">' + gdays[d].label + '</text>';
+                svg += '<text x="' + fmt(kx, 1) + '" y="' + (H - 24) + '" text-anchor="middle" font-size="' + fmt(11.5 * fs, 1) + '" font-weight="500" fill="var(--text)">' + gdays[d].label + '</text>';
                 var pvd = visPV ? gdays[d].pv : null;
                 var ldd = visLoad ? gdays[d].load : null;
                 var parts = '';
@@ -179,7 +180,7 @@
                 if (pvd && ldd) { parts += '<tspan fill="var(--textmuted)"> · </tspan>'; }
                 if (ldd) { parts += '<tspan fill="var(--load)">' + fmt(ldd.kwh, 2) + '</tspan>'; }
                 if (parts) { parts += '<tspan fill="var(--textmuted)"> kWh</tspan>'; }
-                svg += '<text x="' + fmt(kx, 1) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="10">' + parts + '</text>';
+                svg += '<text x="' + fmt(kx, 1) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="' + fmt(10 * fs, 1) + '">' + parts + '</text>';
             }
 
             // Pfad aus Punkten [[x,y],…] — optional Catmull-Rom-Glättung.

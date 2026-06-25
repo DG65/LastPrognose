@@ -101,9 +101,23 @@
                     "caption": "Hintergrund (−1 = IPS-Theme/transparent)"
                 },
                 {
+                    "type": "Select",
+                    "name": "FontFamily",
+                    "caption": "Schriftart (auch heute/morgen/übermorgen)",
+                    "options": [
+                        { "caption": "System",        "value": "system" },
+                        { "caption": "Arial",         "value": "arial" },
+                        { "caption": "Verdana",       "value": "verdana" },
+                        { "caption": "Tahoma",        "value": "tahoma" },
+                        { "caption": "Trebuchet MS",  "value": "trebuchet" },
+                        { "caption": "Georgia",       "value": "georgia" },
+                        { "caption": "Courier New",   "value": "courier" }
+                    ]
+                },
+                {
                     "type": "NumberSpinner",
                     "name": "FontScale",
-                    "caption": "Schriftgröße (Faktor)",
+                    "caption": "Schriftgröße (Faktor, wirkt auf alle Beschriftungen)",
                     "digits": 2,
                     "minimum": 0.5,
                     "maximum": 2.5,

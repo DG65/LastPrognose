@@ -26,6 +26,7 @@ class Energiebilanz extends IPSModule
     private const DEF_BANDOP = 0.16;
     private const DEF_GRID   = true;
     private const DEF_YMAX   = 0.0; // 0 = automatisch
+    private const DEF_FONT   = 'system';
 
     public function Create()
     {
@@ -57,6 +58,7 @@ class Energiebilanz extends IPSModule
         $this->RegisterPropertyFloat('BandOpacity',  self::DEF_BANDOP);
         $this->RegisterPropertyBoolean('ShowGrid',   self::DEF_GRID);
         $this->RegisterPropertyFloat('YMaxManual',   self::DEF_YMAX);
+        $this->RegisterPropertyString('FontFamily',  self::DEF_FONT);
 
         $this->SetVisualizationType(1);
     }
@@ -132,6 +134,7 @@ class Energiebilanz extends IPSModule
         $this->UpdateFormField('BandOpacity', 'value', self::DEF_BANDOP);
         $this->UpdateFormField('ShowGrid', 'value', self::DEF_GRID);
         $this->UpdateFormField('YMaxManual', 'value', self::DEF_YMAX);
+        $this->UpdateFormField('FontFamily', 'value', self::DEF_FONT);
     }
 
     public function GetVisualizationTile()
@@ -156,6 +159,7 @@ class Energiebilanz extends IPSModule
             'bandOp'    => max(0.0, min(0.6, $this->ReadPropertyFloat('BandOpacity'))),
             'showGrid'  => $this->ReadPropertyBoolean('ShowGrid'),
             'yMaxManual'=> max(0.0, $this->ReadPropertyFloat('YMaxManual')),
+            'font'      => $this->FontStack($this->ReadPropertyString('FontFamily')),
         ];
 
         $limit = max(1, min(3, $this->ReadPropertyInteger('Days')));
@@ -367,6 +371,20 @@ class Energiebilanz extends IPSModule
     {
         $s = $this->ReadPropertyFloat('FontScale');
         return max(0.5, min(2.5, $s));
+    }
+
+    private function FontStack(string $key): string
+    {
+        switch ($key) {
+            case 'arial':     return 'Arial, Helvetica, sans-serif';
+            case 'verdana':   return 'Verdana, Geneva, sans-serif';
+            case 'tahoma':    return 'Tahoma, Geneva, sans-serif';
+            case 'trebuchet': return '"Trebuchet MS", Helvetica, sans-serif';
+            case 'georgia':   return 'Georgia, "Times New Roman", serif';
+            case 'courier':   return '"Courier New", Courier, monospace';
+            case 'system':
+            default:          return "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        }
     }
 
     private function ColorHex(int $value, string $fallback): string

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.0
+
+- **Kachel-Feinschliff (Energiebilanz):**
+  - Eigener „Energiebilanz"-Titel **entfernt** — IP-Symcon zeigt den Instanznamen ohnehin; damit gibt
+    es nur noch eine Überschrift (kein doppelter, unterschiedlich eingerückter Titel mehr).
+  - **kW-Achsenbeschriftung** als senkrechtes Label links — keine Überlappung mit dem obersten
+    Achsenwert mehr.
+  - **Schriftart wählbar** (System/Arial/Verdana/Tahoma/Trebuchet/Georgia/Courier) und die
+    **Schriftgröße** wirkt jetzt auf alle Beschriftungen inkl. heute/morgen/übermorgen; Tagesnamen
+    etwas kräftiger.
+
 ## 0.9.3
 
 - **Cache für den Ist-Verlauf**: Die (potenziell teure) Integration des gemessenen Tagesverlaufs aus
