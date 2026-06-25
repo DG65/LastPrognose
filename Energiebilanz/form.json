@@ -63,6 +63,14 @@
             ]
         },
         {
+            "type": "NumberSpinner",
+            "name": "MeasuredCacheSec",
+            "caption": "Ist-Verlauf neu berechnen alle … s (Archiv-Cache)",
+            "minimum": 15,
+            "maximum": 900,
+            "suffix": " s"
+        },
+        {
             "type": "Select",
             "name": "Days",
             "caption": "Anzuzeigende Tage",

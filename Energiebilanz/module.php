@@ -41,6 +41,9 @@ class Energiebilanz extends IPSModule
         // Gemessenen Tagesverlauf (heute) als Overlay-Linie zeichnen.
         $this->RegisterPropertyBoolean('ShowActualPV',   false);
         $this->RegisterPropertyBoolean('ShowActualLoad', false);
+        // Ist-Verlauf nur alle … Sekunden neu aus dem Archiv integrieren (Cache).
+        $this->RegisterPropertyInteger('MeasuredCacheSec', 120);
+        $this->RegisterAttributeString('MeasuredCache', '');
         $this->RegisterPropertyInteger('Days',       self::DEF_DAYS);
         $this->RegisterPropertyInteger('ColorPV',    self::DEF_PV);
         $this->RegisterPropertyInteger('ColorLoad',  self::DEF_LOAD);
@@ -67,6 +70,7 @@ class Energiebilanz extends IPSModule
     {
         parent::ApplyChanges();
         $this->SetVisualizationType(1);
+        $this->WriteAttributeString('MeasuredCache', ''); // Cache bei Konfig-Änderung verwerfen
 
         foreach ($this->GetMessageList() as $senderID => $messages) {
             foreach ($messages as $msg) {
@@ -183,10 +187,10 @@ class Energiebilanz extends IPSModule
         // des jeweiligen Tag-0-Prognoseprofils gebracht.
         $measuredPV = null; $measuredLoad = null;
         if ($showPV && $this->ReadPropertyBoolean('ShowActualPV') && ($days[0]['pv'] ?? null) !== null) {
-            $measuredPV = $this->readMeasured($this->ReadPropertyInteger('ActualPV'), count($days[0]['pv']['p50']));
+            $measuredPV = $this->measuredCached('pv', $this->ReadPropertyInteger('ActualPV'), count($days[0]['pv']['p50']));
         }
         if ($showLoad && $this->ReadPropertyBoolean('ShowActualLoad') && ($days[0]['load'] ?? null) !== null) {
-            $measuredLoad = $this->readMeasured($this->ReadPropertyInteger('ActualLoad'), count($days[0]['load']['p50']));
+            $measuredLoad = $this->measuredCached('load', $this->ReadPropertyInteger('ActualLoad'), count($days[0]['load']['p50']));
         }
 
         return json_encode(array_merge($style, [
@@ -233,6 +237,34 @@ class Energiebilanz extends IPSModule
      * Slots gebracht (stündliches Archivaggregat → auf Raster expandiert).
      * Nicht belegte/zukünftige Slots = null. Rückgabe null ohne Archiv/Daten.
      */
+    /**
+     * Wie readMeasured(), aber mit Cache: integriert den Ist-Verlauf nur alle
+     * MeasuredCacheSec Sekunden neu (Archiv-Zugriff), dazwischen aus dem
+     * Attribut. Der „jetzt"-Punkt/Legendenwert bleibt davon unberührt (live).
+     */
+    private function measuredCached(string $key, int $vid, int $slots)
+    {
+        $ttl   = max(15, $this->ReadPropertyInteger('MeasuredCacheSec'));
+        $today = date('Y-m-d');
+
+        $cache = json_decode($this->ReadAttributeString('MeasuredCache'), true);
+        if (!is_array($cache)) { $cache = []; }
+
+        $e = $cache[$key] ?? null;
+        if (is_array($e)
+            && ($e['day'] ?? '') === $today
+            && (int) ($e['vid'] ?? 0) === $vid
+            && (int) ($e['slots'] ?? 0) === $slots
+            && (time() - (int) ($e['ts'] ?? 0)) < $ttl) {
+            return $e['data'];
+        }
+
+        $data = $this->readMeasured($vid, $slots);
+        $cache[$key] = ['ts' => time(), 'day' => $today, 'vid' => $vid, 'slots' => $slots, 'data' => $data];
+        $this->WriteAttributeString('MeasuredCache', json_encode($cache));
+        return $data;
+    }
+
     private function readMeasured(int $vid, int $slots)
     {
         if ($vid <= 0 || !IPS_VariableExists($vid)) { return null; }

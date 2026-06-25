@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.3
+
+- **Cache für den Ist-Verlauf**: Die (potenziell teure) Integration des gemessenen Tagesverlaufs aus
+  dem Archiv läuft nur noch alle `MeasuredCacheSec` Sekunden (Standard 120, einstellbar) statt bei
+  jedem Tile-Render. Zwischenzeitliche Renders nutzen das gecachte Profil (Attribut). Der momentane
+  Ist-Wert (Legende + „jetzt"-Punkt) bleibt davon unberührt und aktualisiert weiterhin live. Cache
+  wird bei Konfig-Änderung, Variablen-/Auflösungswechsel und Tageswechsel automatisch verworfen.
+
 ## 0.9.2
 
 - **Ist-Verlauf-Overlay ohne Treppenstufen**: Bei 30/15-min-Auflösung wird der gemessene
