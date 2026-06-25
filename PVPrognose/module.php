@@ -327,8 +327,9 @@ class PVPrognose extends IPSModule
         $byDate = [];
         $n = count($time);
         for ($i = 0; $i < $n; $i++) {
-            $date = substr($time[$i], 0, 10);
-            $hour = (int)substr($time[$i], 11, 2);
+            // Open-Meteo: Strahlung = Mittel der VORANGEHENDEN Stunde →
+            // dem Stundenbeginn zuordnen (deckt sich mit dem IPS-Stundenaggregat).
+            list($date, $hour) = $this->omSlot($time[$i]);
             $irr  = (float)($gti[$i] ?? 0);
             $ta   = (float)($temp[$i] ?? 20);
             $derate = 1.0;
@@ -341,6 +342,19 @@ class PVPrognose extends IPSModule
             $byDate[$date][$hour] = $w;
         }
         return $this->mapOffsets($byDate);
+    }
+
+    /**
+     * Open-Meteo-Zeitstempel ("Y-m-d\TH:i") auf [Datum, Stunde] des
+     * Mittelungsintervall-BEGINNS abbilden (eine Stunde zurück), damit
+     * Prognose und gemessenes Stundenaggregat zeitlich deckungsgleich sind.
+     */
+    private function omSlot(string $t): array
+    {
+        $date = substr($t, 0, 10);
+        $hour = (int)substr($t, 11, 2) - 1;
+        if ($hour < 0) { $hour = 23; $date = date('Y-m-d', strtotime($date . ' -1 day')); }
+        return [$date, $hour];
     }
 
     /**
@@ -394,9 +408,8 @@ class PVPrognose extends IPSModule
         $byDate = [];
         $n = count($time);
         for ($i = 0; $i < $n; $i++) {
-            $date = substr($time[$i], 0, 10);
-            if ($date >= $today) { continue; }           // nur abgeschlossene Tage
-            $hour = (int)substr($time[$i], 11, 2);
+            list($date, $hour) = $this->omSlot($time[$i]); // Stundenbeginn (siehe fetchOpenMeteo)
+            if ($date >= $today) { continue; }             // nur abgeschlossene Tage
             $w = $kwpW * ((float)($gti[$i] ?? 0) / 1000.0) * $pr;
             if (!isset($byDate[$date])) { $byDate[$date] = array_fill(0, 24, 0.0); }
             $byDate[$date][$hour] = $w;

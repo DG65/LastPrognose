@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.1
+
+- **Fix Zeitversatz PV-Prognose (Open-Meteo)**: Open-Meteo liefert Strahlung als Mittel der
+  *vorangehenden* Stunde (Wert um 13:00 = 12:00–13:00), das IPS-Stundenarchiv ordnet dem
+  *Stundenbeginn* zu. Dadurch lag die PV-Prognose ~1 h zu spät. Die Open-Meteo-Werte werden jetzt dem
+  Stundenbeginn zugeordnet (`omSlot()`), sodass Prognose und gemessener Tagesverlauf deckungsgleich
+  sind. Gegen die Live-API verifiziert (Peak nun am Sonnenmittag).
+
 ## 0.9.0
 
 - **Gemessener Tagesverlauf als Overlay** in der Energiebilanz-Kachel: der heutige Ist-Verlauf von
