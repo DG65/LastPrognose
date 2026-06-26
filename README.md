@@ -180,9 +180,13 @@ live in der Legende und als Punkt auf der „jetzt"-Linie. Zusätzlich kann der 
 ganzen Tag. Im WebFront blendet ein **Klick auf einen Legendeneintrag** die jeweilige Reihe live
 aus/ein.
 
-Konfigurierbar: kWh je Tag (2 Nachkommastellen), Linienstärke, Kurvenglättung, Unsicherheitsband
-(ein/aus + Transparenz), Gitter/Achsen, Y-Achse manuell, Farben, Schriftart und Schriftgröße;
-Standard ist theme-konform.
+**Diagramm-Engine wählbar:** **ECharts** (Apache-2.0, Default — auch kommerziell kostenlos) oder
+**Highcharts** (nur privat/nicht-kommerziell kostenlos). Beide bieten denselben Funktionsumfang und
+ein nahezu identisches Aussehen; geladen wird nur die gewählte Library per CDN.
+
+Konfigurierbar: kWh je Tag (2 Nachkommastellen), Diagrammhöhe, Linienstärke, Kurvenglättung,
+Unsicherheitsband (ein/aus + Transparenz), Gitter/Achsen, Y-Achse manuell, Farben, Schriftart und
+Schriftgröße; Standard ist theme-konform.
 
 > **Charting-Library:** Die Kachel rendert mit **Highcharts**, das per CDN (`code.highcharts.com`)
 > geladen wird — es ist **nicht** Teil dieses Repos. Highcharts ist für **private,

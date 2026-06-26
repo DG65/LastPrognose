@@ -86,6 +86,19 @@
             "expanded": false,
             "items": [
                 {
+                    "type": "Select",
+                    "name": "ChartEngine",
+                    "caption": "Diagramm-Engine",
+                    "options": [
+                        { "caption": "ECharts (Open Source, auch kommerziell)", "value": "echarts" },
+                        { "caption": "Highcharts (nur privat/nicht-kommerziell)", "value": "highcharts" }
+                    ]
+                },
+                {
+                    "type": "Label",
+                    "caption": "Highcharts ist nur für private, nicht-kommerzielle Nutzung kostenlos. Für kommerzielle Nutzung ECharts wählen (Apache-2.0)."
+                },
+                {
                     "type": "SelectColor",
                     "name": "ColorPV",
                     "caption": "Farbe PV-Erzeugung"

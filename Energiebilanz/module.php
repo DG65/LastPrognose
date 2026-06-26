@@ -28,6 +28,7 @@ class Energiebilanz extends IPSModule
     private const DEF_YMAX   = 0.0; // 0 = automatisch
     private const DEF_FONT   = 'system';
     private const DEF_HEIGHT = 360;
+    private const DEF_ENGINE = 'echarts'; // open source (kommerziell frei)
 
     public function Create()
     {
@@ -61,6 +62,7 @@ class Energiebilanz extends IPSModule
         $this->RegisterPropertyFloat('YMaxManual',   self::DEF_YMAX);
         $this->RegisterPropertyString('FontFamily',  self::DEF_FONT);
         $this->RegisterPropertyInteger('ChartHeight', self::DEF_HEIGHT);
+        $this->RegisterPropertyString('ChartEngine', self::DEF_ENGINE);
 
         $this->SetVisualizationType(1);
     }
@@ -138,6 +140,7 @@ class Energiebilanz extends IPSModule
         $this->UpdateFormField('YMaxManual', 'value', self::DEF_YMAX);
         $this->UpdateFormField('FontFamily', 'value', self::DEF_FONT);
         $this->UpdateFormField('ChartHeight', 'value', self::DEF_HEIGHT);
+        $this->UpdateFormField('ChartEngine', 'value', self::DEF_ENGINE);
     }
 
     public function GetVisualizationTile()
@@ -164,6 +167,7 @@ class Energiebilanz extends IPSModule
             'yMaxManual'=> max(0.0, $this->ReadPropertyFloat('YMaxManual')),
             'font'      => $this->FontStack($this->ReadPropertyString('FontFamily')),
             'height'    => max(180, $this->ReadPropertyInteger('ChartHeight')),
+            'engine'    => ($this->ReadPropertyString('ChartEngine') === 'highcharts') ? 'highcharts' : 'echarts',
         ];
 
         $limit = max(1, min(3, $this->ReadPropertyInteger('Days')));

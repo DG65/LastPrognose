@@ -6,123 +6,152 @@
     <style>
         html, body { margin: 0; height: 100%; background: transparent; }
         .wrap { box-sizing: border-box; padding: 56px 6px 10px; }
+        #legend { display: none; text-align: right; margin-bottom: 8px; line-height: 1.3; }
+        #legend .lg { display: inline-flex; align-items: center; gap: 6px; margin-left: 16px; cursor: pointer; white-space: nowrap; }
+        #legend .lg:first-child { margin-left: 0; }
+        #legend .sw { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+        #legend .lg b { font-weight: 500; }
         #chart { width: 100%; height: 360px; }
+        #days { display: none; margin-top: 6px; line-height: 1.25; }
         .empty { color: #8a97a3; font-size: 13px; padding: 24px 10px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     </style>
-    <script src="https://code.highcharts.com/highcharts.js"></script>
-    <script src="https://code.highcharts.com/highcharts-more.js"></script>
 </head>
 
 <body>
     <div class="wrap">
+        <div id="legend"></div>
         <div id="chart"></div>
+        <div id="days"></div>
     </div>
 
     <script>
-        var lastData = null, chart = null;
+        var lastData = null, chart = null, chartEngine = null;
+        var userHide = { pv: false, load: false };
+        var libs = { hc: 0, ec: 0 };
 
         function handleMessage(payload) {
             var data = (typeof payload === 'string') ? JSON.parse(payload) : payload;
             if (!data) { return; }
             lastData = data;
-            build();
+            render();
         }
 
         function pad(x) { return (x < 10 ? '0' : '') + x; }
         function kw(w) { return (w / 1000).toFixed(2); }
         function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
-        function build() {
-            if (typeof Highcharts === 'undefined' || typeof Highcharts.seriesTypes.arearange === 'undefined') {
-                setTimeout(build, 80); return;
+        function addScript(src, cb) {
+            var s = document.createElement('script');
+            s.src = src; s.onload = cb; s.onerror = function () { cb && cb(); };
+            document.head.appendChild(s);
+        }
+        function ensureLib(engine, cb) {
+            if (engine === 'echarts') {
+                if (typeof echarts !== 'undefined') { libs.ec = 2; return cb(); }
+                if (libs.ec === 1) { return setTimeout(function () { ensureLib(engine, cb); }, 80); }
+                libs.ec = 1; addScript('https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js', function () { libs.ec = 2; cb(); });
+            } else {
+                if (typeof Highcharts !== 'undefined' && Highcharts.seriesTypes && Highcharts.seriesTypes.arearange) { libs.hc = 2; return cb(); }
+                if (libs.hc === 1) { return setTimeout(function () { ensureLib(engine, cb); }, 80); }
+                libs.hc = 1; addScript('https://code.highcharts.com/highcharts.js', function () { addScript('https://code.highcharts.com/highcharts-more.js', function () { libs.hc = 2; cb(); }); });
             }
-            var data = lastData;
+        }
+
+        function destroyChart() {
+            if (chart) { try { if (chartEngine === 'highcharts') { chart.destroy(); } else { chart.dispose(); } } catch (e) {} }
+            chart = null; chartEngine = null;
+            var c = document.getElementById('chart'); if (c) { c.innerHTML = ''; }
+        }
+
+        function render() {
+            var data = lastData; if (!data) { return; }
+            var engine = (data.engine === 'highcharts') ? 'highcharts' : 'echarts';
             var el = document.getElementById('chart');
-            if (!data || !data.hasData || !data.days || !data.days.length) {
-                if (chart) { chart.destroy(); chart = null; }
-                el.innerHTML = '<div class="empty">' + ((data && data.message) || 'Keine Daten') + '</div>';
+            var legEl = document.getElementById('legend'), daysEl = document.getElementById('days');
+            if (!data.hasData || !data.days || !data.days.length) {
+                destroyChart();
+                legEl.style.display = 'none'; daysEl.style.display = 'none';
+                el.innerHTML = '<div class="empty">' + (data.message || 'Keine Daten') + '</div>';
                 return;
             }
+            ensureLib(engine, function () {
+                if (chart && chartEngine !== engine) { destroyChart(); }
+                chartEngine = engine;
+                if (engine === 'echarts') { buildEC(); } else { buildHC(); }
+            });
+        }
 
-            var height = (data.height && data.height >= 180) ? data.height : 360;
-            el.style.height = height + 'px';
-
+        // ---- gemeinsame Datenaufbereitung -------------------------------
+        function prepData() {
+            var data = lastData;
             var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            var TEXT = dark ? '#e8edf2' : '#1b2430';
-            var MUTED = dark ? '#9fb0c0' : '#5c6b7a';
-            var GRID = dark ? 'rgba(127,135,145,.22)' : 'rgba(20,30,45,.14)';
-            var TIP = dark ? 'rgba(28,38,52,.97)' : 'rgba(255,255,255,.98)';
-
-            var days = data.days, nDays = days.length;
-            var pvC = data.pvColor || '#e0a020', loC = data.loadColor || '#2bb3c0';
-            var scale = data.scale || 1, lw = data.lineWidth || 2;
-            var stype = (data.smooth !== false) ? 'spline' : 'line';
-            var showBand = data.showBand !== false, bandOp = (data.bandOp != null ? data.bandOp : 0.16);
-            var fpx = function (n) { return (n * scale) + 'px'; };
-
-            var pvPresent = false, loPresent = false;
-            var pvLine = [], pvBand = [], loLine = [], loBand = [];
-            days.forEach(function (d, di) {
+            var D = {
+                data: data,
+                height: (data.height && data.height >= 180) ? data.height : 360,
+                dark: dark, TEXT: dark ? '#e8edf2' : '#1b2430', MUTED: dark ? '#9fb0c0' : '#5c6b7a',
+                GRID: dark ? 'rgba(127,135,145,.22)' : 'rgba(20,30,45,.14)', TIP: dark ? 'rgba(28,38,52,.97)' : 'rgba(255,255,255,.98)',
+                days: data.days, nDays: data.days.length,
+                pvC: data.pvColor || '#e0a020', loC: data.loadColor || '#2bb3c0',
+                scale: data.scale || 1, lw: data.lineWidth || 2, smooth: (data.smooth !== false),
+                showBand: (data.showBand !== false), bandOp: (data.bandOp != null ? data.bandOp : 0.16),
+                actualPV: data.actualPV, actualLoad: data.actualLoad,
+                yMaxManual: data.yMaxManual || 0, showGrid: (data.showGrid !== false), font: data.font || 'sans-serif',
+                pvPresent: false, loPresent: false, pvLine: [], pvBand: [], loLine: [], loBand: []
+            };
+            data.days.forEach(function (d, di) {
                 if (d.pv) {
-                    pvPresent = true;
-                    var n = d.pv.p50.length, st = 24 / n;
-                    for (var i = 0; i < n; i++) {
-                        var x = di * 24 + i * st;
-                        pvLine.push([x, d.pv.p50[i] / 1000]);
-                        pvBand.push([x, d.pv.p10[i] / 1000, d.pv.p90[i] / 1000]);
-                    }
+                    D.pvPresent = true; var n = d.pv.p50.length, st = 24 / n;
+                    for (var i = 0; i < n; i++) { var x = di * 24 + i * st; D.pvLine.push([x, d.pv.p50[i] / 1000]); D.pvBand.push([x, d.pv.p10[i] / 1000, d.pv.p90[i] / 1000]); }
                 }
                 if (d.load) {
-                    loPresent = true;
-                    var n2 = d.load.p50.length, st2 = 24 / n2;
-                    for (var j = 0; j < n2; j++) {
-                        var x2 = di * 24 + j * st2;
-                        loLine.push([x2, d.load.p50[j] / 1000]);
-                        loBand.push([x2, d.load.p10[j] / 1000, d.load.p90[j] / 1000]);
-                    }
+                    D.loPresent = true; var n2 = d.load.p50.length, st2 = 24 / n2;
+                    for (var j = 0; j < n2; j++) { var x2 = di * 24 + j * st2; D.loLine.push([x2, d.load.p50[j] / 1000]); D.loBand.push([x2, d.load.p10[j] / 1000, d.load.p90[j] / 1000]); }
                 }
             });
-
-            function measured(arr, day0) {
-                if (!arr || !day0) { return []; }
-                var n = day0.p50.length, st = 24 / n, out = [];
-                for (var i = 0; i < n; i++) { if (arr[i] != null) { out.push([i * st, arr[i] / 1000]); } }
-                return out;
+            function measured(arr, day0) { if (!arr || !day0) { return []; } var n = day0.p50.length, st = 24 / n, out = []; for (var i = 0; i < n; i++) { if (arr[i] != null) { out.push([i * st, arr[i] / 1000]); } } return out; }
+            D.pvMeas = measured(data.measuredPV, data.days[0].pv);
+            D.loMeas = measured(data.measuredLoad, data.days[0].load);
+            D.nowX = null; D.nowPts = [];
+            if (data.days[0].label === 'heute') {
+                var now = new Date(); D.nowX = now.getHours() + now.getMinutes() / 60;
+                if (D.pvPresent && data.actualPV != null) { D.nowPts.push({ x: D.nowX, y: data.actualPV / 1000, color: D.pvC }); }
+                if (D.loPresent && data.actualLoad != null) { D.nowPts.push({ x: D.nowX, y: data.actualLoad / 1000, color: D.loC }); }
             }
-            var pvMeas = measured(data.measuredPV, days[0].pv);
-            var loMeas = measured(data.measuredLoad, days[0].load);
+            return D;
+        }
 
-            // „jetzt"-Punkte + Marker
-            var nowX = null, nowPts = [];
-            if (days[0].label === 'heute') {
-                var now = new Date();
-                nowX = now.getHours() + now.getMinutes() / 60;
-                if (pvPresent && data.actualPV != null) { nowPts.push({ x: nowX, y: data.actualPV / 1000, color: pvC }); }
-                if (loPresent && data.actualLoad != null) { nowPts.push({ x: nowX, y: data.actualLoad / 1000, color: loC }); }
-            }
+        // ---- Highcharts (privat) ----------------------------------------
+        function buildHC() {
+            var D = prepData(), data = D.data, el = document.getElementById('chart');
+            document.getElementById('legend').style.display = 'none';
+            document.getElementById('days').style.display = 'none';
+            el.style.height = D.height + 'px';
+
+            var TEXT = D.TEXT, MUTED = D.MUTED, GRID = D.GRID, TIP = D.TIP, days = D.days, nDays = D.nDays;
+            var pvC = D.pvC, loC = D.loC, scale = D.scale, lw = D.lw;
+            var stype = D.smooth ? 'spline' : 'line', showBand = D.showBand, bandOp = D.bandOp;
+            var fpx = function (n) { return (n * scale) + 'px'; };
 
             var series = [];
-            if (pvPresent) {
-                series.push({ id: 'pv', type: stype, name: 'PV', data: pvLine, color: pvC, lineWidth: lw, zIndex: 3 });
-                if (showBand && bandOp > 0) { series.push({ type: 'arearange', name: 'PV-Band', data: pvBand, color: pvC, fillOpacity: bandOp, lineWidth: 0, linkedTo: 'pv', enableMouseTracking: false, showInLegend: false, zIndex: 1 }); }
-                if (pvMeas.length > 1) { series.push({ type: stype, name: 'PV gemessen', data: pvMeas, color: pvC, dashStyle: 'ShortDash', lineWidth: Math.max(1, lw - 0.5), linkedTo: 'pv', enableMouseTracking: false, showInLegend: false, zIndex: 3 }); }
+            if (D.pvPresent) {
+                series.push({ id: 'pv', type: stype, name: 'PV', data: D.pvLine, color: pvC, lineWidth: lw, zIndex: 3 });
+                if (showBand && bandOp > 0) { series.push({ type: 'arearange', name: 'PV-Band', data: D.pvBand, color: pvC, fillOpacity: bandOp, lineWidth: 0, linkedTo: 'pv', enableMouseTracking: false, showInLegend: false, zIndex: 1 }); }
+                if (D.pvMeas.length > 1) { series.push({ type: stype, name: 'PV gemessen', data: D.pvMeas, color: pvC, dashStyle: 'ShortDash', lineWidth: Math.max(1, lw - 0.5), linkedTo: 'pv', enableMouseTracking: false, showInLegend: false, zIndex: 3 }); }
             }
-            if (loPresent) {
-                series.push({ id: 'load', type: stype, name: 'Verbrauch', data: loLine, color: loC, lineWidth: lw, zIndex: 3 });
-                if (showBand && bandOp > 0) { series.push({ type: 'arearange', name: 'Verbrauch-Band', data: loBand, color: loC, fillOpacity: bandOp, lineWidth: 0, linkedTo: 'load', enableMouseTracking: false, showInLegend: false, zIndex: 1 }); }
-                if (loMeas.length > 1) { series.push({ type: stype, name: 'Verbrauch gemessen', data: loMeas, color: loC, dashStyle: 'ShortDash', lineWidth: Math.max(1, lw - 0.5), linkedTo: 'load', enableMouseTracking: false, showInLegend: false, zIndex: 3 }); }
+            if (D.loPresent) {
+                series.push({ id: 'load', type: stype, name: 'Verbrauch', data: D.loLine, color: loC, lineWidth: lw, zIndex: 3 });
+                if (showBand && bandOp > 0) { series.push({ type: 'arearange', name: 'Verbrauch-Band', data: D.loBand, color: loC, fillOpacity: bandOp, lineWidth: 0, linkedTo: 'load', enableMouseTracking: false, showInLegend: false, zIndex: 1 }); }
+                if (D.loMeas.length > 1) { series.push({ type: stype, name: 'Verbrauch gemessen', data: D.loMeas, color: loC, dashStyle: 'ShortDash', lineWidth: Math.max(1, lw - 0.5), linkedTo: 'load', enableMouseTracking: false, showInLegend: false, zIndex: 3 }); }
             }
-            if (nowPts.length) { series.push({ type: 'scatter', name: 'jetzt', data: nowPts, showInLegend: false, enableMouseTracking: false, zIndex: 6, marker: { enabled: true, radius: 5, symbol: 'circle', lineColor: TIP, lineWidth: 2 } }); }
+            if (D.nowPts.length) { series.push({ type: 'scatter', name: 'jetzt', data: D.nowPts, showInLegend: false, enableMouseTracking: false, zIndex: 6, marker: { enabled: true, radius: 5, symbol: 'circle', lineColor: TIP, lineWidth: 2 } }); }
 
             var plotLines = [];
             for (var di = 1; di < nDays; di++) { plotLines.push({ value: di * 24, color: GRID, width: 1, zIndex: 2 }); }
-            if (nowX != null) { plotLines.push({ value: nowX, color: MUTED, width: 1, dashStyle: 'Dash', zIndex: 4 }); }
-
-            var ticks = [];
-            for (var t = 0; t < nDays; t++) { ticks.push(t * 24 + 12); }
+            if (D.nowX != null) { plotLines.push({ value: D.nowX, color: MUTED, width: 1, dashStyle: 'Dash', zIndex: 4 }); }
+            var ticks = []; for (var t = 0; t < nDays; t++) { ticks.push(t * 24 + 12); }
 
             var options = {
-                chart: { backgroundColor: data.bg ? data.bg : 'transparent', height: height, spacing: [10, 8, 2, 6], style: { fontFamily: data.font || 'sans-serif' }, animation: false },
+                chart: { backgroundColor: data.bg ? data.bg : 'transparent', height: D.height, spacing: [10, 8, 2, 6], style: { fontFamily: D.font }, animation: false },
                 title: { text: undefined }, credits: { enabled: false }, exporting: { enabled: false },
                 legend: { enabled: true, align: 'right', verticalAlign: 'top', floating: false, margin: 16, padding: 0, x: -2, y: 0, useHTML: true, symbolRadius: 6, itemStyle: { color: TEXT, fontSize: fpx(11), fontWeight: '400' }, itemHoverStyle: { color: TEXT }, labelFormatter: function () {
                     var ex = '';
@@ -130,59 +159,147 @@
                     if (this.userOptions.id === 'load' && data.actualLoad != null) { ex = ' · jetzt <b>' + kw(data.actualLoad) + ' kW</b>'; }
                     return this.name + ex;
                 } },
-                xAxis: {
-                    min: 0, max: nDays * 24, tickPositions: ticks, gridLineWidth: 0,
-                    lineColor: GRID, tickLength: 0, plotLines: plotLines,
-                    labels: {
-                        useHTML: true, y: 26, style: { fontSize: fpx(10) },
-                        formatter: function () {
-                            var di = Math.round((this.value - 12) / 24);
-                            if (di < 0 || di >= nDays) { return ''; }
-                            var d = days[di], k = '';
-                            if (d.pv) { k += '<span style="color:' + pvC + '">' + d.pv.kwh.toFixed(2) + '</span>'; }
-                            if (d.pv && d.load) { k += ' · '; }
-                            if (d.load) { k += '<span style="color:' + loC + '">' + d.load.kwh.toFixed(2) + '</span>'; }
-                            if (k) { k += ' kWh'; }
-                            return '<div style="text-align:center;line-height:1.25"><div style="font-weight:500;color:' + TEXT + '">' + cap(d.label) + '</div><div style="color:' + MUTED + ';font-size:0.88em">' + k + '</div></div>';
-                        }
-                    }
-                },
-                yAxis: {
-                    min: 0, max: (data.yMaxManual > 0 ? data.yMaxManual : null),
-                    title: { text: 'kW', style: { color: MUTED, fontSize: fpx(10) } },
-                    gridLineColor: GRID, gridLineWidth: (data.showGrid !== false) ? 1 : 0,
-                    labels: { style: { color: MUTED, fontSize: fpx(10) } }
-                },
-                tooltip: {
-                    shared: true, useHTML: true, backgroundColor: TIP, borderColor: GRID, borderRadius: 6,
-                    style: { color: TEXT, fontSize: fpx(11) },
-                    formatter: function () {
-                        var x = this.x, di = Math.floor(x / 24 + 1e-6), hod = x - di * 24;
-                        var hh = Math.floor(hod + 1e-6), mm = Math.round((hod - hh) * 60);
-                        if (mm >= 60) { hh++; mm -= 60; }
-                        var head = cap((days[di] || days[0]).label) + ' ' + pad(hh) + ':' + pad(mm);
-                        var html = '<div style="font-weight:500;margin-bottom:2px">' + head + '</div>';
-                        var pvV = null, loV = null;
-                        this.points.forEach(function (p) {
-                            if (p.series.userOptions.id === 'pv') { pvV = p.y; html += '<div><span style="color:' + pvC + '">●</span> PV: <b>' + p.y.toFixed(2) + ' kW</b></div>'; }
-                            if (p.series.userOptions.id === 'load') { loV = p.y; html += '<div><span style="color:' + loC + '">●</span> Verbrauch: <b>' + p.y.toFixed(2) + ' kW</b></div>'; }
-                        });
-                        if (pvV != null && loV != null) { var s = pvV - loV; html += '<div style="color:' + MUTED + ';margin-top:2px">Saldo ' + (s >= 0 ? '+' : '') + s.toFixed(2) + ' kW</div>'; }
-                        return html;
-                    }
-                },
+                xAxis: { min: 0, max: nDays * 24, tickPositions: ticks, gridLineWidth: 0, lineColor: GRID, tickLength: 0, plotLines: plotLines,
+                    labels: { useHTML: true, y: 26, style: { fontSize: fpx(10) }, formatter: function () {
+                        var di = Math.round((this.value - 12) / 24); if (di < 0 || di >= nDays) { return ''; }
+                        var d = days[di], k = '';
+                        if (d.pv) { k += '<span style="color:' + pvC + '">' + d.pv.kwh.toFixed(2) + '</span>'; }
+                        if (d.pv && d.load) { k += ' · '; }
+                        if (d.load) { k += '<span style="color:' + loC + '">' + d.load.kwh.toFixed(2) + '</span>'; }
+                        if (k) { k += ' kWh'; }
+                        return '<div style="text-align:center;line-height:1.25"><div style="font-weight:500;color:' + TEXT + '">' + cap(d.label) + '</div><div style="color:' + MUTED + ';font-size:0.88em">' + k + '</div></div>';
+                    } } },
+                yAxis: { min: 0, max: (D.yMaxManual > 0 ? D.yMaxManual : null), title: { text: 'kW', style: { color: MUTED, fontSize: fpx(10) } }, gridLineColor: GRID, gridLineWidth: D.showGrid ? 1 : 0, labels: { style: { color: MUTED, fontSize: fpx(10) } } },
+                tooltip: { shared: true, useHTML: true, backgroundColor: TIP, borderColor: GRID, borderRadius: 6, style: { color: TEXT, fontSize: fpx(11) }, formatter: function () {
+                    var x = this.x, di = Math.floor(x / 24 + 1e-6), hod = x - di * 24, hh = Math.floor(hod + 1e-6), mm = Math.round((hod - hh) * 60); if (mm >= 60) { hh++; mm -= 60; }
+                    var head = cap((days[di] || days[0]).label) + ' ' + pad(hh) + ':' + pad(mm);
+                    var html = '<div style="font-weight:500;margin-bottom:2px">' + head + '</div>', pvV = null, loV = null;
+                    this.points.forEach(function (p) {
+                        if (p.series.userOptions.id === 'pv') { pvV = p.y; html += '<div><span style="color:' + pvC + '">●</span> PV: <b>' + p.y.toFixed(2) + ' kW</b></div>'; }
+                        if (p.series.userOptions.id === 'load') { loV = p.y; html += '<div><span style="color:' + loC + '">●</span> Verbrauch: <b>' + p.y.toFixed(2) + ' kW</b></div>'; }
+                    });
+                    if (pvV != null && loV != null) { var s = pvV - loV; html += '<div style="color:' + MUTED + ';margin-top:2px">Saldo ' + (s >= 0 ? '+' : '') + s.toFixed(2) + ' kW</div>'; }
+                    return html;
+                } },
                 plotOptions: { series: { animation: false, marker: { enabled: false }, states: { inactive: { opacity: 1 } } } },
                 series: series
             };
 
-            if (chart) {
-                try { chart.update(options, true, true); }
-                catch (e) { try { chart.destroy(); } catch (_) {} chart = null; }
-            }
+            if (chart) { try { chart.update(options, true, true); } catch (e) { try { chart.destroy(); } catch (_) {} chart = null; } }
             if (!chart) { el.innerHTML = ''; chart = Highcharts.chart('chart', options); }
         }
 
-        window.addEventListener('resize', function () { if (chart) { chart.reflow(); } });
+        // ---- Apache ECharts (open source / kommerziell) -----------------
+        function ecLegend(legEl, D) {
+            var h = '';
+            function item(id, name, color, present, actual, hidden) {
+                if (!present) { return; }
+                var v = actual != null ? (' · jetzt <b>' + kw(actual) + ' kW</b>') : '';
+                h += '<span class="lg" onclick="ecToggle(\'' + id + '\')" title="Klick: aus-/einblenden" style="opacity:' + (hidden ? 0.4 : 1) + '"><span class="sw" style="background:' + color + '"></span>' + name + v + '</span>';
+            }
+            item('pv', 'PV', D.pvC, D.pvPresent, D.actualPV, userHide.pv);
+            item('load', 'Verbrauch', D.loC, D.loPresent, D.actualLoad, userHide.load);
+            legEl.innerHTML = h;
+            legEl.style.fontSize = (11 * D.scale) + 'px'; legEl.style.fontFamily = D.font; legEl.style.color = D.TEXT;
+        }
+        function ecDays(daysEl, D) {
+            var h = '<div style="display:flex;padding:0 14px 0 46px">';
+            D.days.forEach(function (day) {
+                var pv = userHide.pv ? null : day.pv, lo = userHide.load ? null : day.load, k = '';
+                if (pv) { k += '<span style="color:' + D.pvC + '">' + pv.kwh.toFixed(2) + '</span>'; }
+                if (pv && lo) { k += ' · '; }
+                if (lo) { k += '<span style="color:' + D.loC + '">' + lo.kwh.toFixed(2) + '</span>'; }
+                if (k) { k += ' kWh'; }
+                h += '<div style="flex:1;text-align:center"><div style="font-weight:500;color:' + D.TEXT + '">' + cap(day.label) + '</div><div style="color:' + D.MUTED + ';font-size:0.88em">' + k + '</div></div>';
+            });
+            daysEl.innerHTML = h + '</div>';
+            daysEl.style.fontSize = (11 * D.scale) + 'px'; daysEl.style.fontFamily = D.font;
+        }
+        function ecToggle(w) { userHide[w] = !userHide[w]; buildEC(); }
+
+        function buildEC() {
+            var D = prepData(), el = document.getElementById('chart');
+            var legEl = document.getElementById('legend'), daysEl = document.getElementById('days');
+            legEl.style.display = ''; daysEl.style.display = '';
+            el.style.height = D.height + 'px';
+            ecLegend(legEl, D); ecDays(daysEl, D);
+
+            var pvVis = D.pvPresent && !userHide.pv, loVis = D.loPresent && !userHide.load;
+            var fs = function (n) { return n * D.scale; };
+            var series = [];
+
+            // Unsicherheitsband als Polygon (robust auf der Wert-Achse)
+            function bandSeries(band, color, vis) {
+                if (!vis || !D.showBand || D.bandOp <= 0 || band.length < 2) { return; }
+                series.push({
+                    type: 'custom', silent: true, z: 1, clip: true, animation: false, data: [0],
+                    renderItem: function (params, api) {
+                        var pts = [], i, c;
+                        for (i = 0; i < band.length; i++) { c = api.coord([band[i][0], band[i][2]]); pts.push([c[0], c[1]]); }
+                        for (i = band.length - 1; i >= 0; i--) { c = api.coord([band[i][0], band[i][1]]); pts.push([c[0], c[1]]); }
+                        return { type: 'polygon', shape: { points: pts }, style: { fill: color, opacity: D.bandOp } };
+                    }
+                });
+            }
+            bandSeries(D.pvBand, D.pvC, pvVis);
+            bandSeries(D.loBand, D.loC, loVis);
+
+            // yMax selbst bestimmen (Custom-Band zählt nicht in die Auto-Skalierung)
+            var maxV = 0, useBand = D.showBand && D.bandOp > 0;
+            if (pvVis) { (useBand ? D.pvBand : D.pvLine).forEach(function (p) { var v = useBand ? p[2] : p[1]; if (v > maxV) { maxV = v; } }); }
+            if (loVis) { (useBand ? D.loBand : D.loLine).forEach(function (p) { var v = useBand ? p[2] : p[1]; if (v > maxV) { maxV = v; } }); }
+            var yMax = D.yMaxManual > 0 ? D.yMaxManual : Math.max(0.5, Math.ceil(maxV * 1.08 * 2) / 2);
+
+            if (pvVis && D.pvMeas.length > 1) { series.push({ type: 'line', data: D.pvMeas, symbol: 'none', smooth: D.smooth, lineStyle: { color: D.pvC, width: Math.max(1, D.lw - 0.5), type: 'dashed' }, silent: true, animation: false, z: 3 }); }
+            if (loVis && D.loMeas.length > 1) { series.push({ type: 'line', data: D.loMeas, symbol: 'none', smooth: D.smooth, lineStyle: { color: D.loC, width: Math.max(1, D.lw - 0.5), type: 'dashed' }, silent: true, animation: false, z: 3 }); }
+
+            var markData = [];
+            for (var di = 1; di < D.nDays; di++) { markData.push({ xAxis: di * 24, lineStyle: { color: D.GRID, type: 'solid', width: 1 } }); }
+            if (D.nowX != null) { markData.push({ xAxis: D.nowX, lineStyle: { color: D.MUTED, type: 'dashed', width: 1 } }); }
+            var markLine = { silent: true, symbol: 'none', label: { show: false }, data: markData, animation: false };
+            var attached = false;
+            if (pvVis) { var sp = { id: 'pv', name: 'PV', type: 'line', data: D.pvLine, symbol: 'none', smooth: D.smooth, lineStyle: { color: D.pvC, width: D.lw }, itemStyle: { color: D.pvC }, z: 3, animation: false }; if (!attached) { sp.markLine = markLine; attached = true; } series.push(sp); }
+            if (loVis) { var sl = { id: 'load', name: 'Verbrauch', type: 'line', data: D.loLine, symbol: 'none', smooth: D.smooth, lineStyle: { color: D.loC, width: D.lw }, itemStyle: { color: D.loC }, z: 3, animation: false }; if (!attached) { sl.markLine = markLine; attached = true; } series.push(sl); }
+            if (!attached && markData.length) { series.push({ type: 'line', data: [], silent: true, markLine: markLine }); }
+
+            var dots = [];
+            if (D.nowX != null) {
+                if (pvVis && D.actualPV != null) { dots.push({ value: [D.nowX, D.actualPV / 1000], itemStyle: { color: D.pvC, borderColor: D.TIP, borderWidth: 2 } }); }
+                if (loVis && D.actualLoad != null) { dots.push({ value: [D.nowX, D.actualLoad / 1000], itemStyle: { color: D.loC, borderColor: D.TIP, borderWidth: 2 } }); }
+            }
+            if (dots.length) { series.push({ type: 'scatter', data: dots, symbolSize: 11, z: 6, silent: true, animation: false }); }
+
+            var option = {
+                backgroundColor: D.data.bg ? D.data.bg : 'transparent',
+                textStyle: { fontFamily: D.font, color: D.TEXT },
+                grid: { left: 46, right: 14, top: 8, bottom: 6, containLabel: false },
+                animation: false,
+                xAxis: { type: 'value', min: 0, max: D.nDays * 24, axisLabel: { show: false }, axisTick: { show: false }, axisLine: { lineStyle: { color: D.GRID } }, splitLine: { show: false } },
+                yAxis: { type: 'value', min: 0, max: yMax, name: 'kW', nameTextStyle: { color: D.MUTED, fontSize: fs(10), align: 'left' }, nameGap: 6, axisLabel: { color: D.MUTED, fontSize: fs(10) }, axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: D.showGrid, lineStyle: { color: D.GRID } } },
+                tooltip: { trigger: 'axis', backgroundColor: D.TIP, borderColor: D.GRID, borderWidth: 1, textStyle: { color: D.TEXT, fontSize: fs(11) }, axisPointer: { type: 'line', lineStyle: { color: D.MUTED, type: 'dashed' } },
+                    formatter: function (ps) {
+                        if (!ps || !ps.length) { return ''; }
+                        var x = ps[0].axisValue, di = Math.floor(x / 24 + 1e-6), hod = x - di * 24, hh = Math.floor(hod + 1e-6), mm = Math.round((hod - hh) * 60); if (mm >= 60) { hh++; mm -= 60; }
+                        var head = cap((D.days[di] || D.days[0]).label) + ' ' + pad(hh) + ':' + pad(mm);
+                        var html = '<div style="font-weight:500;margin-bottom:2px">' + head + '</div>', pvV = null, loV = null;
+                        ps.forEach(function (p) {
+                            if (p.seriesName === 'PV') { pvV = p.value[1]; html += '<div><span style="color:' + D.pvC + '">●</span> PV: <b>' + p.value[1].toFixed(2) + ' kW</b></div>'; }
+                            if (p.seriesName === 'Verbrauch') { loV = p.value[1]; html += '<div><span style="color:' + D.loC + '">●</span> Verbrauch: <b>' + p.value[1].toFixed(2) + ' kW</b></div>'; }
+                        });
+                        if (pvV != null && loV != null) { var s = pvV - loV; html += '<div style="color:' + D.MUTED + ';margin-top:2px">Saldo ' + (s >= 0 ? '+' : '') + s.toFixed(2) + ' kW</div>'; }
+                        return html;
+                    } },
+                series: series
+            };
+
+            if (!chart) { el.innerHTML = ''; chart = echarts.init(el, null, { renderer: 'canvas' }); }
+            chart.setOption(option, true);
+        }
+
+        window.addEventListener('resize', function () {
+            if (!chart) { return; }
+            if (chartEngine === 'echarts') { chart.resize(); } else { chart.reflow(); }
+        });
     </script>
 </body>
 

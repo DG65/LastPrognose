@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.0
+
+- **Wählbare Diagramm-Engine** in der Energiebilanz-Kachel:
+  - **ECharts** (Apache-2.0, Default) — kostenlos auch für **kommerzielle** Nutzung.
+  - **Highcharts** — nur für **private/nicht-kommerzielle** Nutzung kostenlos.
+  Es wird nur die gewählte Library per CDN geladen; beim Umschalten wird das alte Diagramm sauber
+  entsorgt. Beide Engines bieten denselben Funktionsumfang (Bänder, Ist-Verlauf, „jetzt"-Marker,
+  kWh je Tag, Hover mit Saldo, Live-Werte, Aus-/Einblenden) und ein nahezu identisches Aussehen.
+  - Hinweis: Default ist ECharts. Für private Nutzung in der Instanz „Highcharts" wählen.
+
 ## 0.11.2
 
 - **Kachel-Layout:** mehr Abstand oben zum (IPS-)Titel, Legende sitzt in einem eigenen Streifen mit
